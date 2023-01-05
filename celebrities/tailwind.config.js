@@ -8,6 +8,7 @@ module.exports = {
       'light-purple': '#ab52c5',
       'dark-purple': '#8F37A9',
       'text-purple': '#f6c6fa',
+      'white': '#ffffff',
     },
     extend: {
       fontFamily: {

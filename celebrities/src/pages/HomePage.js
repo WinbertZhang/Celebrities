@@ -5,10 +5,12 @@ import Logo from '../components/Logo.js';
 class HomePage extends Component {
   render() {
     return (
-        <div className="mx-auto">
+      <div className=''>
+        <div className="mx-auto bg-dark-purple">
           <Logo />
           <Title />
         </div>
+      </div>
     );
   }
 }
