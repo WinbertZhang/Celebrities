@@ -4,7 +4,16 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}"
   ],
   theme: {
-    extend: {},
+    colors: {
+      'light-purple': '#ab52c5',
+      'dark-purple': '#8F37A9',
+      'text-purple': '#f6c6fa',
+    },
+    extend: {
+      fontFamily: {
+        'title': 'League Spartan',
+      },
+    },
   },
   plugins: [],
 }
