@@ -1,6 +1,6 @@
 function Title(){
     return(
-        <div className='font-title tracking-tight text-white text-bold text-center text-5xl'>
+        <div className='font-title tracking-tight text-white text-bold text-[70px]'>
             celebrities
         </div>
     );
