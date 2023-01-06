@@ -12,7 +12,7 @@ class App extends Component {
   render() {
     if(this.state.gameState === 0){
       return (
-        <div className='bg-dark-purple'>
+        <div>
           <HomePage />
         </div>
       );
