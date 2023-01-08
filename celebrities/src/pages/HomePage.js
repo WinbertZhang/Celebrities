@@ -31,7 +31,7 @@ class HomePage extends Component {
               <div className='text-center font-title tracking-tight text-white text-6xl my-4 drop-shadow-xl'>
                 start game:
               </div>
-              <div className='flex justify-center drop-shadow-xl'>
+              <div className='flex justify-center drop-shadow-xl hover:scale-105'>
                 <PlayButton></PlayButton>
               </div>
               <div className='flex justify-center drop-shadow-xl'>
