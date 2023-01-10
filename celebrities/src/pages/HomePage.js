@@ -14,14 +14,16 @@ class HomePage extends Component {
               <div className='relative top-10 left-10 drop-shadow-xl'>
                 <Logo/>
               </div>
-
-              <Title/>
+              <div className='relative top-10 left-10 drop-shadow-xl'>
+                <Title/>
+              </div>
+              
             </div>
             <div className='absolute left-[800px] top-[50px] z-10'>
               <div className='w-3/4 justify-center font-title tracking-tight text-text-purple text-center text-6xl m-8 drop-shadow-xl'>
                 how to play:
               </div>
-              <div className='bg-dark-purple rounded-3xl drop-shadow-xl'>
+              <div className='bg-dark-purple w-[35rem] rounded-3xl drop-shadow-xl'>
                 <RuleBox><img className='h-20 min-w-[80px] m-8 drop-shadow-xl' src={require('../images/icon1.png')} alt='not found' /></RuleBox>
                 <RuleBox><img className='h-20 min-w-[80px] m-8 drop-shadow-xl' src={require('../images/icon3.png')} alt='not found' /></RuleBox>
                 <RuleBox><img className='h-20 min-w-[80px] m-8 drop-shadow-xl' src={require('../images/icon2.png')} alt='not found' /></RuleBox>
