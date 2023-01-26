@@ -7,7 +7,7 @@ import Lobby from './pages/LobbyPage.js'
 
 class App extends Component {
   state = {
-    gameState: 1,
+    gameState: 0,
   };
 
   render() {
