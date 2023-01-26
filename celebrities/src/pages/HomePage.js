@@ -15,7 +15,7 @@ class HomePage extends Component {
                 <Logo/>
               </div>
               <div className='relative top-10 left-10 drop-shadow-xl'>
-                <Title/>
+                <Title>celebrities</Title>
               </div>
               
             </div>

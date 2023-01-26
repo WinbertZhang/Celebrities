@@ -1,7 +1,7 @@
-function Title(){
+function Title(props){
     return(
         <div className='font-title tracking-tight text-white text-8xl'>
-            celebrities
+            {props.children}
         </div>
     );
 }
