@@ -4,7 +4,17 @@ import Logo from '../components/Logo.js';
 import PlayButton from "../components/PlayButton.js";
 import RuleBox from "../components/RuleBox.js";
 import OptionsButton from "../components/OptionsButton.js";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from '../firebase';
+
 function HomePage(props) {
+  async function handleLoadGameClick(){
+    const querySnapshot = await getDocs(collection(db, "games"));
+    querySnapshot.forEach((doc) => {
+      console.log(`${doc.id} => ${doc.data()}`);
+    });
+  }
+
   return (
     <div>
       <div className="absolute z-1 left-[-15rem] top-[-17rem] bg-dark-purple w-[100rem] h-[25rem] rotate-[340deg] border-[12px] border-white drop-shadow-xl" />
@@ -32,7 +42,7 @@ function HomePage(props) {
           <div className='text-center font-title tracking-tight text-white text-6xl my-4 drop-shadow-xl'>
             start game:
           </div>
-          <div onClick={() => props.handleButtonClick('lobby')} className='flex justify-center drop-shadow-xl hover:scale-105'>
+          <div onClick={() => {props.handlePageChangeClick('lobby'); handleLoadGameClick(); }} className='flex justify-center drop-shadow-xl hover:scale-105'>
             <PlayButton></PlayButton>
           </div>
           <div className='flex justify-center drop-shadow-xl'>

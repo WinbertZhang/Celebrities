@@ -8,37 +8,35 @@ import Lobby from './pages/LobbyPage.js'
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
 
-  function handleButtonClick(page) {
-    console.log('button clicked');
-    console.log(page);
+  function handlePageChangeClick(page) {
     setCurrentPage(page);
   }
 
   if (currentPage === 'home') {
     return(
       <div>
-        {currentPage === 'home' && <HomePage handleButtonClick={handleButtonClick} />}
+        {currentPage === 'home' && <HomePage handlePageChangeClick={handlePageChangeClick}/>}
       </div>
     )
   }
   else if (currentPage === 'lobby') {
     return(
       <div>
-        {currentPage === 'lobby' && <Lobby handleButtonClick={handleButtonClick} />}
+        {currentPage === 'lobby' && <Lobby handlePageChangeClick={handlePageChangeClick} />}
       </div>
     )
   }
   else if (currentPage === 'selection') {
     return(
       <div>
-        {currentPage === 'selection' && <SelectionPage handleButtonClick={handleButtonClick} />}
+        {currentPage === 'selection' && <SelectionPage handlePageChangeClick={handlePageChangeClick} />}
       </div>
     )
   }
   else if (currentPage === 'guess') {
     return(
       <div>
-        {currentPage === 'guess' && <GuessingPage handleButtonClick={handleButtonClick} />}
+        {currentPage === 'guess' && <GuessingPage handlePageChangeClick={handlePageChangeClick} />}
       </div>
     )
   }
