@@ -1,44 +1,47 @@
 import './App.css';
-import React, {Component} from 'react';
+import React, { useState } from 'react';
 import HomePage from './pages/HomePage.js';
 import SelectionPage from './pages/SelectionPage.js';
 import GuessingPage from './pages/GuessingPage.js';
 import Lobby from './pages/LobbyPage.js'
 
-class App extends Component {
-  state = {
-    gameState: 0,
-  };
+function App() {
+  const [currentPage, setCurrentPage] = useState('home');
 
-  render() {
-    if(this.state.gameState === 0){
-      return (
-        <div>
-          <HomePage />
-        </div>
-      );
-    }
-    else if(this.state.gameState  === 1){
-      return(
-        <div>
-          <Lobby />
-        </div>
-      );
-    }
-    else if(this.state.gameState  === 2){
-      return(
-        <div>
-          <SelectionPage />
-        </div>
-      );
-    }
-    else{
-      return(
-        <div>
-          <GuessingPage />
-        </div>
-      );
-    }
+  function handleButtonClick(page) {
+    console.log('button clicked');
+    console.log(page);
+    setCurrentPage(page);
   }
+
+  if (currentPage === 'home') {
+    return(
+      <div>
+        {currentPage === 'home' && <HomePage handleButtonClick={handleButtonClick} />}
+      </div>
+    )
+  }
+  else if (currentPage === 'lobby') {
+    return(
+      <div>
+        {currentPage === 'lobby' && <Lobby handleButtonClick={handleButtonClick} />}
+      </div>
+    )
+  }
+  else if (currentPage === 'selection') {
+    return(
+      <div>
+        {currentPage === 'selection' && <SelectionPage handleButtonClick={handleButtonClick} />}
+      </div>
+    )
+  }
+  else if (currentPage === 'guess') {
+    return(
+      <div>
+        {currentPage === 'guess' && <GuessingPage handleButtonClick={handleButtonClick} />}
+      </div>
+    )
+  }
+
 }
 export default App;
