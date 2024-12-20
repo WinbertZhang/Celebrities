@@ -1,7 +1,7 @@
 "use client";
-import { db } from '../firebase/clientApp';
+import { db } from '@/firebase/clientApp';
 import { doc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore';
-import { Room } from '../firebase/types';
+import { Room } from '@/firebase/types';
 
 export function useGameLogic(roomId: string) {
   async function addWord(word: string) {
@@ -72,5 +72,15 @@ export function useGameLogic(roomId: string) {
     });
   }
 
-  return { addWord, startGame, finishWordEntry, setTeams, recordTurnResults };
+  async function updatePlayerName(uid: string, newName: string) {
+    const roomRef = doc(db, 'rooms', roomId);
+    const snapshot = await getDoc(roomRef);
+    const data = snapshot.data() as Room;
+    const updatedPlayers = data.players.map(p => p.uid === uid ? { ...p, name: newName } : p);
+    await updateDoc(roomRef, {
+      players: updatedPlayers
+    });
+  }
+
+  return { addWord, startGame, finishWordEntry, setTeams, recordTurnResults, updatePlayerName };
 }
