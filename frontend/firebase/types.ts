@@ -17,4 +17,5 @@ export type Player = {
     usedWords?: string[];
     remainingWords?: string[];
     scores?: { [teamNumber: number]: number };
+    clueGivers?: { [teamNumber: number]: string };
   };

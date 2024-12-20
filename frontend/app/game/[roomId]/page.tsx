@@ -5,7 +5,6 @@ import { useGameLogic } from "@/hooks/useGameLogic";
 import { signInAnonymously } from "firebase/auth";
 import { auth } from "@/firebase/clientApp";
 import { useState, useEffect } from "react";
-import Timer from "@/components/Timer";
 import WordEntryForm from "@/components/WordEntryForm";
 import TeamSetup from "@/components/TeamSetup";
 import ScoringModal from "@/components/ScoringModal";
@@ -19,11 +18,11 @@ export default function GameRoom() {
     setTeams,
     recordTurnResults,
     updatePlayerName,
+    rotateClueGiver,
   } = useGameLogic(roomId);
 
   const [correctWords, setCorrectWords] = useState<string[]>([]);
   const [missedWords, setMissedWords] = useState<string[]>([]);
-  const [time, setTime] = useState<number>(60);
   const [turnActive, setTurnActive] = useState<boolean>(false);
   const [editStates, setEditStates] = useState<
     Record<string, { name: string; editing: boolean }>
@@ -37,6 +36,8 @@ export default function GameRoom() {
   const activeTeam = room?.currentTeamTurn;
   const isMyTeamTurn = myPlayer?.team === activeTeam;
   const currentWord = room?.remainingWords?.[0];
+  const isClueGiver =
+    activeTeam !== undefined && room?.clueGivers?.[activeTeam] === user?.uid;
 
   // Effect to handle anonymous sign-in
   useEffect(() => {
@@ -65,29 +66,10 @@ export default function GameRoom() {
   useEffect(() => {
     if (room?.phase === "play" && isMyTeamTurn && currentWord) {
       setTurnActive(true);
-      setTime(60);
     } else {
       setTurnActive(false);
     }
   }, [room?.phase, isMyTeamTurn, currentWord]);
-
-  // Effect to handle timer during active turn
-  useEffect(() => {
-    if (turnActive) {
-      const interval = setInterval(() => {
-        setTime((t) => {
-          if (t <= 1) {
-            clearInterval(interval);
-            setTurnActive(false);
-            return 0;
-          }
-          return t - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }
-  }, [turnActive]);
 
   // Handlers for player name editing
   const handleNameChange = async (uid: string, newName: string) => {
@@ -118,6 +100,22 @@ export default function GameRoom() {
     if (!currentWord) return;
     setMissedWords((mw) => [...mw, currentWord]);
     room?.remainingWords?.shift();
+  };
+
+  const confirmScores = () => {
+    recordTurnResults(correctWords);
+    setCorrectWords([]);
+    setMissedWords([]);
+    if (activeTeam !== undefined) {
+      rotateClueGiver(activeTeam); // Rotate the clue giver for the active team
+    }
+  };
+
+  const endTurn = () => {
+    if (activeTeam !== undefined) {
+      rotateClueGiver(activeTeam); // Rotate the clue giver for the active team
+    }
+    recordTurnResults(correctWords); // Record the results for the current team
   };
 
   // Early returns for loading or authentication state
@@ -214,13 +212,6 @@ export default function GameRoom() {
     return (
       <div className="p-4 flex flex-col items-center">
         <h2 className="text-2xl font-bold mb-2">Enter Your Words!</h2>
-        <p className="mb-4">
-          Time left:{" "}
-          <span className="font-semibold text-red-600">
-            <Timer initialSeconds={120} />
-          </span>{" "}
-          seconds
-        </p>
         <WordEntryForm roomId={roomId} room={room} />
         {isHost && (
           <button
@@ -245,14 +236,10 @@ export default function GameRoom() {
   }
 
   if (room.phase === "play") {
-    if (turnActive && isMyTeamTurn && currentWord) {
+    if (turnActive && isMyTeamTurn && isClueGiver) {
       return (
         <div className="p-4 flex flex-col items-center">
           <h2 className="text-2xl font-bold mb-2">Your Team&apos;s Turn!</h2>
-          <p className="text-lg mb-4">
-            Time Left:{" "}
-            <span className="text-red-600 font-semibold">{time}s</span>
-          </p>
           <h3 className="text-xl font-bold mb-4">{currentWord}</h3>
           <div className="space-x-4">
             <button
@@ -267,7 +254,20 @@ export default function GameRoom() {
             >
               Skip
             </button>
+            <button
+              onClick={endTurn}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 mt-4 rounded"
+            >
+              End Turn
+            </button>
           </div>
+        </div>
+      );
+    } else if (turnActive && isMyTeamTurn) {
+      return (
+        <div className="p-4 flex flex-col items-center">
+          <h2 className="text-2xl font-bold mb-2">Waiting for the clue giver...</h2>
+          <p className="text-lg mb-4">Your clue giver is selecting words!</p>
         </div>
       );
     } else if (!turnActive && isMyTeamTurn) {
@@ -275,19 +275,13 @@ export default function GameRoom() {
         <ScoringModal
           correctWords={correctWords}
           missedWords={missedWords}
-          onConfirm={() => {
-            recordTurnResults(correctWords);
-            setCorrectWords([]);
-            setMissedWords([]);
-          }}
+          onConfirm={confirmScores}
         />
       );
     } else {
       return (
         <div className="p-4 flex flex-col items-center">
-          <h2 className="text-2xl font-bold mb-2">
-            Waiting for the other team...
-          </h2>
+          <h2 className="text-2xl font-bold mb-2">Waiting for the other team...</h2>
         </div>
       );
     }
