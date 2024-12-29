@@ -7,7 +7,6 @@ import { auth } from "@/firebase/clientApp";
 import { useState, useEffect } from "react";
 import WordEntryForm from "@/components/WordEntryForm";
 import TeamSetup from "@/components/TeamSetup";
-import ScoringModal from "@/components/ScoringModal";
 
 export default function GameRoom() {
   const { roomId } = useParams() as { roomId: string };
@@ -21,25 +20,35 @@ export default function GameRoom() {
     rotateClueGiver,
   } = useGameLogic(roomId);
 
+  // Local states for the current turn
+  const [turnActive, setTurnActive] = useState<boolean>(false);
+  const [turnStarted, setTurnStarted] = useState<boolean>(false);
+  const [turnWords, setTurnWords] = useState<string[]>([]);
   const [correctWords, setCorrectWords] = useState<string[]>([]);
   const [missedWords, setMissedWords] = useState<string[]>([]);
-  const [turnActive, setTurnActive] = useState<boolean>(false);
+
+  // UI / editing states
   const [editStates, setEditStates] = useState<
     Record<string, { name: string; editing: boolean }>
   >({});
 
+  // Firebase user
   const user = auth.currentUser;
 
-  // Variables derived from `room` and `user`
+  // Derived from room & user
   const isHost = room?.hostUid === user?.uid;
   const myPlayer = room?.players.find((p) => p.uid === user?.uid);
   const activeTeam = room?.currentTeamTurn;
   const isMyTeamTurn = myPlayer?.team === activeTeam;
-  const currentWord = room?.remainingWords?.[0];
   const isClueGiver =
     activeTeam !== undefined && room?.clueGivers?.[activeTeam] === user?.uid;
 
-  // Effect to handle anonymous sign-in
+  // Current word is the first of our local turnWords array
+  const currentWord = turnWords.length > 0 ? turnWords[0] : null;
+
+  /**
+   * Sign in Anonymously if no user
+   */
   useEffect(() => {
     if (!user) {
       signInAnonymously(auth).catch((error) =>
@@ -48,30 +57,46 @@ export default function GameRoom() {
     }
   }, [user]);
 
-  // Effect to initialize editing states for players
+  /**
+   * Initialize editing states
+   */
   useEffect(() => {
     if (room?.players) {
-      const initialEditStates: Record<
-        string,
-        { name: string; editing: boolean }
-      > = {};
+      const initialEdits: Record<string, { name: string; editing: boolean }> = {};
       room.players.forEach((p) => {
-        initialEditStates[p.uid] = { name: p.name, editing: false };
+        initialEdits[p.uid] = { name: p.name, editing: false };
       });
-      setEditStates(initialEditStates);
+      setEditStates(initialEdits);
     }
   }, [room?.players]);
 
-  // Effect to manage turn activation
+  /**
+   * Manage whether it's this player's active turn
+   */
   useEffect(() => {
-    if (room?.phase === "play" && isMyTeamTurn && currentWord) {
+    // If phase=play, it's our team's turn, and there's at least one global word => turn is "active"
+    if (room?.phase === "play" && isMyTeamTurn && (room?.remainingWords?.length || 0) > 0) {
       setTurnActive(true);
     } else {
       setTurnActive(false);
     }
-  }, [room?.phase, isMyTeamTurn, currentWord]);
+  }, [room?.phase, isMyTeamTurn, room?.remainingWords]);
 
-  // Handlers for player name editing
+  /**
+   * Whenever turn ends (or is not active), reset local turn states
+   */
+  useEffect(() => {
+    if (!turnActive) {
+      setTurnStarted(false);
+      setCorrectWords([]);
+      setMissedWords([]);
+      setTurnWords([]);
+    }
+  }, [turnActive]);
+
+  /**
+   * Handler: Updating player's name in the lobby
+   */
   const handleNameChange = async (uid: string, newName: string) => {
     if (room?.phase === "lobby" && user) {
       await updatePlayerName(uid, newName);
@@ -89,40 +114,92 @@ export default function GameRoom() {
     }));
   };
 
-  // Handlers for word guessing
-  const gotIt = () => {
-    if (!currentWord) return;
-    setCorrectWords((cw) => [...cw, currentWord]);
-    room?.remainingWords?.shift();
-  };
-
-  const skipIt = () => {
-    if (!currentWord) return;
-    setMissedWords((mw) => [...mw, currentWord]);
-    room?.remainingWords?.shift();
-  };
-
-  const confirmScores = () => {
-    recordTurnResults(correctWords);
+  /**
+   * Handler: Start the turn
+   *  - copy the global remainingWords into our local turnWords
+   */
+  const startTurn = () => {
+    setTurnStarted(true);
+    setTurnWords(room?.remainingWords ?? []);
     setCorrectWords([]);
     setMissedWords([]);
-    if (activeTeam !== undefined) {
-      rotateClueGiver(activeTeam); // Rotate the clue giver for the active team
+  };
+
+  /**
+   * Handler: Correct guess (Got it)
+   * - Remove the current word from turnWords
+   * - Add to local correctWords
+   */
+  const gotIt = () => {
+    if (!currentWord) return;
+    setCorrectWords((prev) => [...prev, currentWord]);
+    setTurnWords((prev) => prev.slice(1));
+
+    console.log("Correct words:", correctWords);
+    console.log("Turn words:", turnWords);
+
+    // If no words left after removing => end turn automatically
+    if (turnWords.length <= 1) {
+      endTurn();
     }
   };
 
-  const endTurn = () => {
-    if (activeTeam !== undefined) {
-      rotateClueGiver(activeTeam); // Rotate the clue giver for the active team
+  /**
+   * Handler: Skipped word
+   * - Remove from turnWords so it won't repeat this turn
+   * - Add to local missedWords
+   */
+  const skipIt = () => {
+    if (!currentWord) return;
+    setMissedWords((prev) => [...prev, currentWord]);
+    setTurnWords((prev) => prev.slice(1));
+
+    // If no words left after removing => end turn automatically
+    if (turnWords.length <= 1) {
+      endTurn();
     }
-    recordTurnResults(correctWords); // Record the results for the current team
   };
 
-  // Early returns for loading or authentication state
+  /**
+   * Handler: End the turn manually (or automatically if no words left)
+   * - We record the entire turn in Firestore all at once
+   */
+  const endTurn = async () => {
+    if (room?.phase === "done") return;
+
+    // Actually update Firestore: remove correctWords permanently, reintroduce missedWords, etc.
+    await recordTurnResults(correctWords, missedWords, true);
+
+    // Rotate clue giver for the next time this team plays
+    if (activeTeam !== undefined) {
+      rotateClueGiver(activeTeam);
+    }
+
+    // Clean up local states
+    setTurnStarted(false);
+    setCorrectWords([]);
+    setMissedWords([]);
+    setTurnWords([]);
+  };
+
+  /**
+   * Check if the game is over
+   */
+  useEffect(() => {
+    if (room?.phase === "done") {
+      console.log("Game over! Transitioning to final state.");
+    }
+  }, [room?.phase]);
+
+  /**
+   * Early returns for loading or auth
+   */
   if (!room) return <div className="p-4">Loading...</div>;
   if (!user) return <div className="p-4">Please wait, authenticating...</div>;
 
-  // Phase-specific rendering
+  /**
+   * PHASES
+   */
   if (room.phase === "lobby") {
     return (
       <div className="p-4 flex flex-col items-center">
@@ -135,7 +212,6 @@ export default function GameRoom() {
               name: p.name,
               editing: false,
             };
-
             return (
               <li
                 key={p.uid}
@@ -236,11 +312,30 @@ export default function GameRoom() {
   }
 
   if (room.phase === "play") {
+    // If it's our turn and we are the clue giver
     if (turnActive && isMyTeamTurn && isClueGiver) {
+      // Haven't pressed "Start Turn" yet
+      if (!turnStarted) {
+        return (
+          <div className="p-4 flex flex-col items-center">
+            <h2 className="text-2xl font-bold mb-4">You are the clue giver!</h2>
+            <p className="text-lg mb-4">Press the button to start your turn.</p>
+            <button
+              onClick={startTurn}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+            >
+              Start Turn
+            </button>
+          </div>
+        );
+      }
+      // Turn is active, clue giver is playing
       return (
         <div className="p-4 flex flex-col items-center">
           <h2 className="text-2xl font-bold mb-2">Your Team&apos;s Turn!</h2>
-          <h3 className="text-xl font-bold mb-4">{currentWord}</h3>
+          {currentWord && (
+            <h3 className="text-xl font-bold mb-4">{currentWord}</h3>
+          )}
           <div className="space-x-4">
             <button
               onClick={gotIt}
@@ -264,30 +359,29 @@ export default function GameRoom() {
         </div>
       );
     } else if (turnActive && isMyTeamTurn) {
+      // It's our team's turn, but we're NOT the clue giver
       return (
         <div className="p-4 flex flex-col items-center">
-          <h2 className="text-2xl font-bold mb-2">Waiting for the clue giver...</h2>
+          <h2 className="text-2xl font-bold mb-2">
+            Waiting for the clue giver...
+          </h2>
           <p className="text-lg mb-4">Your clue giver is selecting words!</p>
         </div>
       );
-    } else if (!turnActive && isMyTeamTurn) {
-      return (
-        <ScoringModal
-          correctWords={correctWords}
-          missedWords={missedWords}
-          onConfirm={confirmScores}
-        />
-      );
     } else {
+      // It's not our team's turn
       return (
         <div className="p-4 flex flex-col items-center">
-          <h2 className="text-2xl font-bold mb-2">Waiting for the other team...</h2>
+          <h2 className="text-2xl font-bold mb-2">
+            Waiting for the other team...
+          </h2>
         </div>
       );
     }
   }
 
   if (room.phase === "done") {
+    // Game over
     const team1Score = room.scores?.[1] || 0;
     const team2Score = room.scores?.[2] || 0;
 
@@ -308,5 +402,6 @@ export default function GameRoom() {
     );
   }
 
+  // Default
   return <div className="p-4">Loading...</div>;
 }
